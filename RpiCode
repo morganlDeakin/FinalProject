@@ -1,0 +1,102 @@
+from gpiozero import LED
+import RPi.GPIO as GPIO
+from gpiozero import Buzzer
+from time import sleep
+import urllib.request
+import json
+
+def getResult():
+    try:
+        url = "https://api.particle.io/v1/devices/[device ID]/distCm?access_token=[Access Token]"
+        response = urllib.request.urlopen(url)
+        data = response.read()
+        JSON_object = json.loads(data.decode('utf-8'))
+        print(JSON_object['result'])
+        return(JSON_object['result'])
+    except:
+        print("Timeout")
+        return -100;
+        
+def blink(dist):
+    
+    if(dist < 40):
+        if(dist > 30):
+            time = 2
+        if(dist < 30 and dist > 20):
+            time = 1.5
+        if(dist < 20 and dist > 10):
+            time = 1
+        if(dist < 10 and dist > 6):
+            time = .5
+        if(dist < 6):
+            time = .25
+        ledWhite.on()
+        sleep(time)
+        ledWhite.off()
+    else:
+        ledWhite.off()
+    
+def redLight(dist):
+    if(dist != 0): 
+        lightDc = (100 - dist)
+        pwmLight.ChangeDutyCycle(lightDc)
+    else:
+        lightDc = 0
+        pwmLight.ChangeDutyCycle(lightDc)
+        
+def buzzerPwm(dist):
+    if(dist != 0): 
+        if(dist > 30):
+            buzzDc = 0
+        if(dist < 30 and dist > 20):
+            buzzDc = 10
+        if(dist < 20 and dist > 10):
+            buzzDc = 40
+        if(dist < 10 and dist > 6):
+            buzzDc = 60
+        if(dist < 6):
+            buzzDc = 80
+        pwmBuzz.ChangeDutyCycle(buzzDc)
+    else:
+        buzzDc = 0
+        pwmBuzz.ChangeDutyCycle(buzzDc)
+
+try:
+    GPIO.setmode(GPIO.BCM)
+
+    ledWhite = LED(15)
+    ledRed = LED(18)
+    buzzer = Buzzer(14)
+
+    pwmLight = GPIO.PWM(18, 100)
+    pwmBuzz = GPIO.PWM(14, 100)
+
+    buzzDc = 0
+    lightDc = 0
+
+    pwmLight.start(lightDc)
+    pwmBuzz.start(buzzDc)
+    
+    distance = -10
+    
+    while(distance != -100):
+        distance = getResult()
+        if(distance > 0):
+            
+            blink(distance)
+            
+            if(distance < 30):
+                buzzerPwm(distance)
+            else:
+                buzzerPwm(0)
+            
+            if(distance < 10):
+                redLight(distance)
+            else:
+                redLight(0)
+        if(distance == -1):
+            buzzerPwm(0)
+            redLight(0)
+         
+except KeyboardInterrupt:
+    GPIO.cleanup()
