@@ -1,0 +1,174 @@
+import android.os.AsyncTask;
+import android.os.Bundle;
+import android.os.Handler;
+import android.support.v7.app.AppCompatActivity;
+import android.util.Log;
+import android.webkit.WebView;
+import android.webkit.WebViewClient;
+import android.widget.ImageView;
+import android.widget.TextView;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
+import java.net.URL;
+
+public class MainActivity extends AppCompatActivity
+{
+    TextView txtJson;
+    double distance;
+    WebView myWebView;
+    ImageView radar;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState)
+    {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+
+        txtJson = (TextView) findViewById(R.id.tvJsonItem);
+        myWebView = (WebView) findViewById(R.id.wvVideo);
+        radar = (ImageView) findViewById(R.id.image);
+        myWebView.setWebViewClient(new HelloWebViewClient());
+        myWebView.loadUrl("http://192.168.1.101:8081");
+        distance = 0;
+
+        mUpdateView.run();
+    }
+
+    Handler mUpdater = new Handler();
+    Runnable mUpdateView = new Runnable()
+    {
+        @Override
+        public void run()
+        {
+            new JsonTask().execute("https://api.particle.io/v1/devices/[device ID]/distCm?access_token=[access token]");
+            if(!txtJson.getText().toString().isEmpty())
+            {
+                distance = Double.parseDouble(txtJson.getText().toString());
+                ChangePic();
+            }
+            mUpdater.postDelayed(this, 1000);
+        }
+    };
+
+    private class JsonTask extends AsyncTask<String, String, String>
+    {
+        protected void onPreExecute()
+        {
+            super.onPreExecute();
+        }
+
+        protected String doInBackground(String... params)
+        {
+            HttpURLConnection connection = null;
+            BufferedReader reader = null;
+
+            try
+            {
+                URL url = new URL(params[0]);
+                connection = (HttpURLConnection) url.openConnection();
+                connection.connect();
+
+
+                InputStream stream = connection.getInputStream();
+
+                reader = new BufferedReader(new InputStreamReader(stream));
+
+                StringBuffer buffer = new StringBuffer();
+                String line = "";
+
+                while ((line = reader.readLine()) != null)
+                {
+                    buffer.append(line+"\n");
+                    Log.d("Response: ", "> " + line);
+
+                }
+
+                return buffer.toString();
+            }
+            catch (MalformedURLException e)
+            {
+                e.printStackTrace();
+            }
+            catch (IOException e)
+            {
+                e.printStackTrace();
+            }
+            finally
+            {
+                if (connection != null)
+                {
+                    connection.disconnect();
+                }
+                try
+                {
+                    if (reader != null)
+                    {
+                        reader.close();
+                    }
+                }
+                catch (IOException e)
+                {
+                    e.printStackTrace();
+                }
+            }
+            return null;
+        }
+
+        @Override
+        protected void onPostExecute(String result)
+        {
+            super.onPostExecute(result);
+            String[] temp1 = result.split(",");
+            String temp = temp1[2];
+            String[] distance = temp.split(":");
+            String distance2 = distance[1];
+            if(distance2.length() > 5)
+            {
+                distance2 = distance2.substring(0, 5);
+            }
+            if(distance2.equals("-1"))
+            {
+                txtJson.setText("");
+            }
+            else
+            {
+                txtJson.setText(distance2);
+            }
+
+        }
+    }
+
+    private class HelloWebViewClient extends WebViewClient
+    {
+        @Override
+        public boolean shouldOverrideUrlLoading(WebView view, String url)
+        {
+            view.loadUrl(url);
+            return true;
+        }
+    }
+
+    private void ChangePic()
+    {
+        if(distance > 30)
+        {
+            radar.setImageResource(R.drawable.distance);
+        }
+        if(distance < 30 && distance > 20)
+        {
+            radar.setImageResource(R.drawable.distance3);
+        }
+        if(distance < 20 && distance > 10)
+        {
+            radar.setImageResource(R.drawable.distance2);
+        }
+        if(distance < 10)
+        {
+            radar.setImageResource(R.drawable.distance1);
+        }
+    }
+}
