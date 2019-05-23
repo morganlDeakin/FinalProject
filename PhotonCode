@@ -1,0 +1,54 @@
+int trigPin = D4;
+int echoPin = D5;
+
+int maxDist = 200;
+int minDist = 0;
+
+double distCm = 0.0;
+
+double getDistanceCM()
+{
+    sendTriggerPulse(trigPin);
+    waitForEcho(echoPin, HIGH, 100);
+    long startTime = micros();
+    waitForEcho(echoPin, LOW, 100);
+    long endTime = micros();
+    long duration = endTime - startTime;
+    double distance = duration / 29.0 / 2.0;
+    if (distance < minDist || distance > maxDist)
+    {
+        return -1;
+    }
+    return distance;
+}
+
+void sendTriggerPulse(int pin)
+{
+    digitalWrite(pin, HIGH);
+    delayMicroseconds(10);
+    digitalWrite(pin, LOW);
+}
+
+void waitForEcho(int pin, int value, long timeout)
+{
+    long giveupTime = millis() + timeout;
+    while (digitalRead(pin) != value && millis() < giveupTime)
+    {
+    }
+}
+
+void setup()
+{
+    Particle.variable("distCm", distCm);
+    Serial.begin(9600);
+    pinMode(trigPin, OUTPUT);
+    pinMode(echoPin, INPUT);
+}
+
+void loop()
+{
+    distCm = getDistanceCM();
+    Serial.print("Distance: ");
+    Serial.println(distCm);
+    delay(200);
+}
